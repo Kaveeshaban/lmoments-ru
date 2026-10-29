@@ -1,0 +1,780 @@
+<title>L-моменты в анализе речного стока</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Literata:wght@500;600&family=Golos+Text:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: one reading column. Each section opens with a hairline and a small label.
+   Results sit in cards made of labelled metric cells; the C++ source is a scrollable block with line numbers. */
+:root {
+  --bg: #F3F7F8;
+  --surface: #FFFFFF;
+  --surface-2: #E8EFF2;
+  --fg: #0E2430;
+  --muted: #4A6070;
+  --line: #D0DCE2;
+  --accent: #0A6A86;
+  --accent-fg: #FFFFFF;
+  --accent-soft: #DCEDF2;
+  --ok: #1B7443; --ok-bg: #DDF0E5;
+  --warn: #7F5200; --warn-bg: #FAEAC6;
+  --bad: #9E2626; --bad-bg: #F7D9D6;
+  --code-bg: #EDF3F5;
+  --c-com: #4F6B7A; --c-kw: #0A6A86; --c-str: #8A4B00; --c-num: #6A3FA0; --c-pre: #3C6B2A;
+  --f-display: 'Literata', Georgia, 'Times New Roman', serif;
+  --f-body: 'Golos Text', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --f-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0B1820; --surface: #112430; --surface-2: #173341; --fg: #E3EEF2; --muted: #9CB3BF; --line: #254150;
+    --accent: #62C6E0; --accent-fg: #062029; --accent-soft: #12323E;
+    --ok: #6FD39A; --ok-bg: #123826; --warn: #F1C76D; --warn-bg: #3B2E11; --bad: #FF9F97; --bad-bg: #401C1C;
+    --code-bg: #0A141B; --c-com: #8AA3B0; --c-kw: #62C6E0; --c-str: #E8B878; --c-num: #B8A6F2; --c-pre: #8FD08A;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0B1820; --surface: #112430; --surface-2: #173341; --fg: #E3EEF2; --muted: #9CB3BF; --line: #254150;
+  --accent: #62C6E0; --accent-fg: #062029; --accent-soft: #12323E;
+  --ok: #6FD39A; --ok-bg: #123826; --warn: #F1C76D; --warn-bg: #3B2E11; --bad: #FF9F97; --bad-bg: #401C1C;
+  --code-bg: #0A141B; --c-com: #8AA3B0; --c-kw: #62C6E0; --c-str: #E8B878; --c-num: #B8A6F2; --c-pre: #8FD08A;
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+@media (prefers-reduced-motion: no-preference) { html { scroll-behavior: smooth; } }
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font: 400 1rem/1.6 var(--f-body);
+  padding-block: 2.5rem 4rem;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+.wrap { max-width: 58rem; margin-inline: auto; }
+p { margin: 0 0 1rem; max-width: 68ch; }
+a { color: var(--accent); }
+sub, sup { line-height: 0; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.eyebrow { font: 500 0.75rem/1.4 var(--f-mono); letter-spacing: 0.08em; text-transform: uppercase; color: var(--accent); margin: 0 0 0.9rem; }
+h1 { font: 600 clamp(2.2rem, 1rem + 5vw, 3.5rem)/1.06 var(--f-display); letter-spacing: -0.012em; margin: 0 0 1rem; text-wrap: balance; }
+h2 { font: 600 1.75rem/1.2 var(--f-display); margin: 0 0 1rem; text-wrap: balance; }
+h3 { font: 600 1.05rem/1.3 var(--f-body); margin: 0; }
+.lede { font-size: 1.15rem; line-height: 1.55; color: var(--fg); max-width: 60ch; }
+.byline { font-size: 0.9rem; color: var(--muted); margin-bottom: 1.75rem; }
+
+.facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr)); gap: 1rem 2rem; margin: 0 0 1.75rem; padding-block: 1.1rem; border-block: 1px solid var(--line); }
+.facts > div { min-width: 0; }
+.facts dt { font: 500 0.72rem/1.4 var(--f-mono); letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); margin-bottom: 0.2rem; }
+.facts dd { margin: 0; font-size: 0.95rem; }
+.toc { display: flex; flex-wrap: wrap; gap: 0.5rem 1.4rem; font-size: 0.92rem; font-weight: 500; }
+.toc a { text-decoration: none; padding-block: 0.15rem; border-bottom: 1px solid transparent; }
+.toc a:hover { border-bottom-color: var(--accent); }
+
+section.block { padding-block: 2.75rem 0.5rem; margin-top: 2.5rem; border-top: 1px solid var(--line); }
+.label { font: 500 0.72rem/1.4 var(--f-mono); letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); margin: 0 0 0.5rem; }
+
+.two { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 22rem), 1fr)); gap: 1.25rem; margin-bottom: 1.5rem; }
+.two > * { min-width: 0; }
+pre.file { margin: 0; padding: 0.9rem 1rem; background: var(--code-bg); border: 1px solid var(--line); border-radius: 6px; font: 400 0.82rem/1.55 var(--f-mono); overflow-x: auto; }
+.cap { font-size: 0.82rem; color: var(--muted); margin: 0.4rem 0 0; }
+ul.plain { margin: 0 0 1.25rem; padding-left: 1.2rem; max-width: 68ch; }
+ul.plain li { margin-bottom: 0.3rem; }
+code, .mono { font-family: var(--f-mono); font-size: 0.88em; }
+pre.cmd { margin: 0 0 1rem; padding: 0.8rem 1rem; background: var(--code-bg); border: 1px solid var(--line); border-radius: 6px; font: 400 0.85rem/1.6 var(--f-mono); overflow-x: auto; max-width: 36rem; }
+
+/* pipeline */
+ol.steps { list-style: none; margin: 0; padding: 0; counter-reset: step; }
+ol.steps li { counter-increment: step; display: grid; grid-template-columns: 2rem minmax(0, 1fr) auto; gap: 0.25rem 1rem; align-items: start; padding-block: 0.95rem; border-bottom: 1px solid var(--line); }
+ol.steps li:first-child { border-top: 1px solid var(--line); }
+ol.steps li::before { content: counter(step); font: 500 0.8rem/2rem var(--f-mono); text-align: center; width: 2rem; height: 2rem; border-radius: 50%; background: var(--accent-soft); color: var(--accent); }
+ol.steps h3 { margin-bottom: 0.15rem; }
+ol.steps p { margin: 0; font-size: 0.93rem; color: var(--muted); }
+.ref { font: 500 0.75rem/1 var(--f-mono); padding: 0.4rem 0.5rem; border: 1px solid var(--line); border-radius: 4px; background: var(--surface); color: var(--accent); cursor: pointer; white-space: nowrap; }
+.ref:hover { background: var(--accent-soft); }
+@media (max-width: 34rem) {
+  ol.steps li { grid-template-columns: 2rem minmax(0, 1fr); }
+  ol.steps li .ref { grid-column: 2; justify-self: start; margin-top: 0.4rem; }
+}
+
+/* formulas */
+.formulas { border-top: 1px solid var(--line); margin-bottom: 1.25rem; }
+.f-row { display: grid; grid-template-columns: minmax(8rem, 12rem) minmax(0, 1fr) auto; gap: 0.4rem 1.25rem; align-items: center; padding-block: 0.8rem; border-bottom: 1px solid var(--line); }
+.f-name { font-size: 0.85rem; color: var(--muted); }
+.f-expr { font: 400 1.1rem/1.9 var(--f-display); overflow-x: auto; padding-block: 0.1rem; }
+.f-expr i { font-style: italic; }
+.f-expr div + div { margin-top: 0.1rem; }
+.fr { display: inline-flex; flex-direction: column; align-items: center; vertical-align: middle; margin-inline: 0.25em; line-height: 1.3; text-align: center; font-size: 0.95em; }
+.fr > span:first-child { border-bottom: 1px solid currentColor; padding-inline: 0.3em; }
+.fr > span:last-child { padding-inline: 0.3em; }
+@media (max-width: 40rem) {
+  .f-row { grid-template-columns: minmax(0, 1fr) auto; }
+  .f-expr { grid-column: 1 / -1; grid-row: 2; }
+}
+
+/* table */
+.table-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 6px; background: var(--surface); }
+table { border-collapse: collapse; width: 100%; font-size: 0.9rem; }
+th, td { padding: 0.65rem 0.85rem; text-align: left; border-bottom: 1px solid var(--line); vertical-align: top; }
+thead th { font: 500 0.72rem/1.3 var(--f-mono); letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); background: var(--surface-2); white-space: nowrap; }
+tbody tr:last-child th, tbody tr:last-child td { border-bottom: 0; }
+tbody th { font-weight: 600; }
+td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; font-family: var(--f-mono); font-size: 0.85rem; }
+.muted { color: var(--muted); }
+.struct { min-width: 38rem; }
+.struct td:last-child { white-space: nowrap; }
+
+/* calculator */
+.note { font-size: 0.9rem; color: var(--muted); }
+.field label, .field .lab { display: block; font-weight: 600; font-size: 0.9rem; margin-bottom: 0.35rem; }
+textarea { width: 100%; min-height: 12rem; padding: 0.75rem 0.85rem; background: var(--surface); color: var(--fg); border: 1px solid var(--line); border-radius: 6px; font: 400 0.85rem/1.55 var(--f-mono); resize: vertical; white-space: pre; overflow: auto; }
+.toolbar { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 0.5rem; }
+.btn { display: inline-flex; align-items: center; gap: 0.4rem; font: 500 0.85rem/1 var(--f-body); padding: 0.55rem 0.85rem; border: 1px solid var(--line); border-radius: 6px; background: var(--surface); color: var(--fg); cursor: pointer; }
+.btn:hover { background: var(--surface-2); }
+.btn.primary { background: var(--accent); color: var(--accent-fg); border-color: var(--accent); }
+.btn.primary:hover { filter: brightness(1.08); }
+.btn input[type=file] { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
+.btn:focus-within { outline: 2px solid var(--accent); outline-offset: 2px; }
+.btn { position: relative; }
+
+.status { margin: 1.25rem 0 0.75rem; font-size: 0.92rem; }
+.status ul { margin: 0.4rem 0 0; padding-left: 1.2rem; color: var(--warn); }
+.status .err { color: var(--bad); font-weight: 500; }
+.rule-note { font-size: 0.85rem; color: var(--muted); margin: 0.75rem 0 1.25rem; }
+
+.pill { display: inline-block; font: 500 0.72rem/1 var(--f-mono); letter-spacing: 0.06em; padding: 0.3rem 0.5rem; border-radius: 4px; white-space: nowrap; }
+.risk-low { background: var(--ok-bg); color: var(--ok); }
+.risk-moderate { background: var(--warn-bg); color: var(--warn); }
+.risk-high { background: var(--bad-bg); color: var(--bad); }
+
+#cards { display: grid; gap: 1rem; margin-top: 1.25rem; }
+.river { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 1.1rem 1.2rem 1.25rem; min-width: 0; }
+.river-head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: 0.4rem 1rem; margin-bottom: 0.2rem; }
+.river-head h3 { font-size: 1.1rem; overflow-wrap: anywhere; }
+.river .sub { font-size: 0.85rem; color: var(--muted); margin: 0 0 0.9rem; }
+.strip { margin: 0 0 1.2rem; }
+.strip .track { position: relative; height: 1.6rem; margin-inline: 6px; }
+.strip .track::before { content: ""; position: absolute; left: -6px; right: -6px; top: 50%; height: 1px; background: var(--line); }
+.strip .track i { position: absolute; top: 50%; width: 8px; height: 8px; margin: -4px 0 0 -4px; border-radius: 50%; background: var(--accent); opacity: 0.4; }
+.strip .track b { position: absolute; top: 0; bottom: 0; width: 2px; margin-left: -1px; background: var(--fg); }
+.strip figcaption { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 0.2rem 1rem; font: 400 0.76rem/1.4 var(--f-mono); color: var(--muted); font-variant-numeric: tabular-nums; }
+.groups { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 15rem), 1fr)); gap: 1.2rem 2rem; }
+.groups > section { min-width: 0; }
+.groups .wide { grid-column: 1 / -1; }
+.groups h4 { font: 500 0.72rem/1.4 var(--f-mono); letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); margin: 0 0 0.5rem; }
+.cells { display: grid; grid-template-columns: repeat(auto-fill, minmax(5.6rem, 1fr)); gap: 0.7rem 0.8rem; }
+.cell { min-width: 0; display: flex; flex-direction: column; }
+.cell .v { margin-top: auto; }
+.cell .k { font-size: 0.8rem; color: var(--muted); line-height: 1.3; }
+.cell .k small { display: block; font-size: 0.7rem; }
+.cell .v { font: 500 0.95rem/1.4 var(--f-mono); font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+details.out { margin-top: 1.5rem; }
+details.out summary { cursor: pointer; font-weight: 600; font-size: 0.95rem; padding-block: 0.3rem; }
+pre.report { margin: 0.6rem 0 0; padding: 1rem; background: var(--code-bg); border: 1px solid var(--line); border-radius: 6px; font: 400 0.76rem/1.5 var(--f-mono); overflow: auto; max-height: 28rem; }
+
+/* source viewer */
+.chips { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 0.75rem; align-items: center; }
+.chips .btn { font-family: var(--f-mono); font-size: 0.78rem; padding: 0.45rem 0.6rem; }
+.chips .spacer { flex: 1 1 auto; }
+.code { position: relative; max-height: min(72vh, 40rem); overflow: auto; background: var(--code-bg); border: 1px solid var(--line); border-radius: 6px; font: 400 0.8rem/1.55 var(--f-mono); }
+.code-inner { display: block; min-width: max-content; padding-block: 0.6rem; }
+.ln { display: block; white-space: pre; padding-right: 1.2rem; }
+.ln::before { content: attr(data-n); display: inline-block; position: sticky; left: 0; width: 3.6em; margin-right: 1em; padding-right: 0.8em; text-align: right; color: var(--c-com); background: var(--code-bg); user-select: none; }
+.ln.flash { animation: flash 2.6s ease-out; }
+@keyframes flash { from { background: var(--accent-soft); } to { background: transparent; } }
+@media (prefers-reduced-motion: reduce) { .ln.flash { animation: none; background: var(--accent-soft); } }
+.c-com { color: var(--c-com); font-style: italic; }
+.c-kw { color: var(--c-kw); font-weight: 500; }
+.c-str { color: var(--c-str); }
+.c-num { color: var(--c-num); }
+.c-pre { color: var(--c-pre); }
+
+.refs { font-size: 0.9rem; max-width: 68ch; padding-left: 1.2rem; }
+.refs li { margin-bottom: 0.5rem; }
+footer { margin-top: 3rem; padding-top: 1.25rem; border-top: 1px solid var(--line); font-size: 0.85rem; color: var(--muted); }
+footer p { max-width: 70ch; }
+</style>
+<div class="wrap">
+<header>
+  <p class="eyebrow">L-моменты · распределение Пирсона III типа</p>
+  <h1>L-моменты в анализе речного стока</h1>
+  <p class="lede">Онлайн-расчёт параметров трёхпараметрического гамма-распределения (кривой Пирсона III типа) по рядам расходов воды методом L-моментов. Введите данные в указанном формате и сразу получите результаты.</p>
+  <p class="byline">Дугганна Ралалаге Кавиша Аширвадани Бандара · РГГМУ, Санкт-Петербург · магистратура, направление 05.04.05 «Прикладная гидрометеорология»</p>
+  <dl class="facts">
+    <div><dt>Что ввести</dt><dd>Ряды расходов воды в м³/с: один столбец на реку или створ</dd></div>
+    <div><dt>Что получить</dt><dd>L-моменты l<sub>1</sub>–l<sub>4</sub>, отношения t<sub>2</sub>–t<sub>4</sub>, параметры α, β, γ, среднее, σ, C<sub>v</sub>, C<sub>s</sub></dd></div>
+    <div><dt>Где считается</dt><dd>В вашем браузере. Данные никуда не отправляются</dd></div>
+  </dl>
+  <nav class="toc" aria-label="Содержание">
+    <a href="#format">Формат данных</a>
+    <a href="#try-it">Расчёт онлайн</a>
+    <a href="#method">Метод</a>
+    <a href="#references">Литература</a>
+  </nav>
+</header>
+
+<section class="block" id="format">
+  <h2>Формат данных</h2>
+  <p>Нужны два списка: названия рек и сами данные. Порядок названий должен совпадать с порядком столбцов с числами.</p>
+  <div class="two">
+    <div>
+      <p class="label">Названия (по одному в строке)</p>
+<pre class="file">P.Sheltozerka - S.Sheltozero
+Lososinka - R.Lososinka - G.Petrozavodsk
+Neglinka - R.Neglinka - G.Petrozavodsk</pre>
+    </div>
+    <div>
+      <p class="label">Данные (расходы воды, м³/с)</p>
+<pre class="file">1.31 6.02 0.72
+1.45 5.06 0.70
+1.05 4.14 0.47</pre>
+    </div>
+  </div>
+  <p class="label">Правила</p>
+  <ul class="plain">
+    <li>Названия: одна река и створ в строке, пустые строки пропускаются.</li>
+    <li>Данные: только числа, без заголовков и названий. Столбцы разделяются пробелом или табуляцией.</li>
+    <li>Десятичный разделитель: точка или запятая.</li>
+    <li>Нулевые и отрицательные значения не учитываются.</li>
+    <li>Для каждой реки нужно не менее 4 значений. Ряды могут быть разной длины, но в первой строке данных должны быть значения для всех столбцов.</li>
+    <li>Пропуск в середине строки сдвигает следующие значения в соседний столбец, поэтому пустые клетки заполните или удалите строку целиком.</li>
+    <li>Если названий больше, чем столбцов, лишние названия не используются. Если столбцов больше, лишние столбцы игнорируются.</li>
+  </ul>
+</section>
+
+<section class="block" id="try-it">
+  <h2>Расчёт онлайн</h2>
+  <p>Вставьте названия и данные в поля ниже или откройте два текстовых файла. Результаты обновляются при вводе. Сейчас в полях учебный пример с условными данными, он показывает формат. Чтобы вернуть его, нажмите «Вернуть пример».</p>
+  <div class="two">
+    <div class="field">
+      <label for="names">Названия рек, по одному в строке</label>
+      <textarea id="names" wrap="off" spellcheck="false">Пример: река А – пост 1
+Пример: река Б – пост 2
+Пример: река В – пост 3</textarea>
+      <div class="toolbar"><label class="btn"><input type="file" id="namesFile" accept=".txt,text/plain">Открыть файл названий</label></div>
+    </div>
+    <div class="field">
+      <label for="data">Расходы воды, один столбец на реку (м³/с)</label>
+      <textarea id="data" wrap="off" spellcheck="false">1.72 4.86 1.78
+2.00 2.19 1.59
+2.13 6.22 2.21
+1.34 1.62 2.11
+1.82 4.80 2.13
+2.56 3.57 1.93
+2.31 2.03 2.60
+1.14 2.36 2.64
+1.88 2.83 1.68
+1.20 2.96 3.58
+1.51 2.95 2.79
+1.17 2.96 2.59
+1.50 2.16 1.86
+1.61 5.42 1.78
+2.95 3.18 2.52
+1.35 11.32 2.09
+0.98 3.11 1.88
+1.94 2.73 1.53
+1.88 5.79 2.12
+1.32 5.39 2.02
+2.12 1.45 2.45
+0.89 4.67 1.96
+1.10 7.35 2.52
+2.39 3.79 2.97
+1.67 10.49 2.34
+1.92 2.09 2.50
+2.22 4.37 1.57
+0.94 4.66 2.45
+1.97 3.49 1.81
+2.93 4.38 1.97</textarea>
+      <div class="toolbar"><label class="btn"><input type="file" id="dataFile" accept=".txt,text/plain">Открыть файл данных</label><button class="btn" id="reset" type="button">Вернуть пример</button></div>
+    </div>
+  </div>
+  <div class="status" id="status" role="status" aria-live="polite"></div>
+  <div id="summary"></div>
+  <p class="rule-note" id="ruleNote" hidden>Класс риска наводнения определяется по L-коэффициенту вариации t<sub>2</sub>: меньше 0,2 — низкий, меньше 0,5 — умеренный, иначе высокий. Это упрощённое правило программы.</p>
+  <div id="cards"></div>
+  <details class="out" id="textOut" hidden>
+    <summary>Результаты в виде текста</summary>
+    <div class="toolbar"><button class="btn" id="copyReport" type="button">Скопировать текст</button></div>
+    <pre class="report" id="report" tabindex="0"></pre>
+  </details>
+</section>
+
+<section class="block" id="method">
+  <h2>Метод</h2>
+  <p>Ряд расходов упорядочен по возрастанию: x<sub>1</sub> ≤ x<sub>2</sub> ≤ … ≤ x<sub>n</sub>, суммы берутся по j = 1 … n. Порядок расчёта: вероятностно взвешенные моменты, L-моменты, их отношения, параметры распределения, обычные статистики.</p>
+  <div class="formulas">
+    <div class="f-row"><div class="f-name">Вероятностно взвешенные моменты</div><div class="f-expr">
+      <div><i>b</i><sub>0</sub> = <span class="fr"><span>1</span><span><i>n</i></span></span> Σ <i>x<sub>j</sub></i></div>
+      <div><i>b</i><sub>1</sub> = <span class="fr"><span>1</span><span><i>n</i></span></span> Σ <span class="fr"><span><i>j</i> − 1</span><span><i>n</i> − 1</span></span> <i>x<sub>j</sub></i></div>
+      <div><i>b</i><sub>2</sub> = <span class="fr"><span>1</span><span><i>n</i></span></span> Σ <span class="fr"><span>(<i>j</i> − 1)(<i>j</i> − 2)</span><span>(<i>n</i> − 1)(<i>n</i> − 2)</span></span> <i>x<sub>j</sub></i></div>
+      <div><i>b</i><sub>3</sub> = <span class="fr"><span>1</span><span><i>n</i></span></span> Σ <span class="fr"><span>(<i>j</i> − 1)(<i>j</i> − 2)(<i>j</i> − 3)</span><span>(<i>n</i> − 1)(<i>n</i> − 2)(<i>n</i> − 3)</span></span> <i>x<sub>j</sub></i></div>
+    </div></div>
+    <div class="f-row"><div class="f-name">L-моменты</div><div class="f-expr">
+      <div><i>λ</i><sub>1</sub> = <i>b</i><sub>0</sub></div>
+      <div><i>λ</i><sub>2</sub> = 2<i>b</i><sub>1</sub> − <i>b</i><sub>0</sub></div>
+      <div><i>λ</i><sub>3</sub> = 6<i>b</i><sub>2</sub> − 6<i>b</i><sub>1</sub> + <i>b</i><sub>0</sub></div>
+      <div><i>λ</i><sub>4</sub> = 20<i>b</i><sub>3</sub> − 30<i>b</i><sub>2</sub> + 12<i>b</i><sub>1</sub> − <i>b</i><sub>0</sub></div>
+    </div></div>
+    <div class="f-row"><div class="f-name">Отношения L-моментов</div><div class="f-expr">
+      <div><i>τ</i><sub>2</sub> = <span class="fr"><span><i>λ</i><sub>2</sub></span><span><i>λ</i><sub>1</sub></span></span> (L-коэффициент вариации), &nbsp; <i>τ</i><sub>3</sub> = <span class="fr"><span><i>λ</i><sub>3</sub></span><span><i>λ</i><sub>2</sub></span></span> (L-асимметрия), &nbsp; <i>τ</i><sub>4</sub> = <span class="fr"><span><i>λ</i><sub>4</sub></span><span><i>λ</i><sub>2</sub></span></span> (L-эксцесс)</div>
+    </div></div>
+    <div class="f-row"><div class="f-name">Параметр формы α при |τ<sub>3</sub>| &lt; 1/3</div><div class="f-expr">
+      <div><i>z</i> = 3π<i>τ</i><sub>3</sub><sup>2</sup></div>
+      <div><i>α</i> = <span class="fr"><span>1 + 0,2906<i>z</i></span><span><i>z</i> + 0,1882<i>z</i><sup>2</sup> + 0,0442<i>z</i><sup>3</sup></span></span></div>
+    </div></div>
+    <div class="f-row"><div class="f-name">Параметр формы α при 1/3 ≤ |τ<sub>3</sub>| &lt; 1</div><div class="f-expr">
+      <div><i>z</i> = 1 − |<i>τ</i><sub>3</sub>|</div>
+      <div><i>α</i> = <span class="fr"><span>0,36067<i>z</i> − 0,59567<i>z</i><sup>2</sup> + 0,25361<i>z</i><sup>3</sup></span><span>1 − 2,78861<i>z</i> + 2,56096<i>z</i><sup>2</sup> − 0,77045<i>z</i><sup>3</sup></span></span></div>
+    </div></div>
+    <div class="f-row"><div class="f-name">Ограничения на α</div><div class="f-expr">
+      <div>При |<i>τ</i><sub>3</sub>| &lt; 10<sup>−6</sup> принимается <i>α</i> = 1000, при |<i>τ</i><sub>3</sub>| ≥ 1 принимается <i>α</i> = 0,01.</div>
+      <div>Затем значение ограничивается интервалом 0,01 ≤ <i>α</i> ≤ 200.</div>
+    </div></div>
+    <div class="f-row"><div class="f-name">Параметр масштаба β</div><div class="f-expr">
+      <div><i>β</i> = <i>λ</i><sub>2</sub> √π <span class="fr"><span>Γ(<i>α</i>)</span><span>Γ(<i>α</i> + ½)</span></span></div>
+    </div></div>
+    <div class="f-row"><div class="f-name">Параметр положения γ</div><div class="f-expr">
+      <div><i>γ</i> = <i>λ</i><sub>1</sub> − <i>αβ</i></div>
+    </div></div>
+    <div class="f-row"><div class="f-name">Обычные статистики</div><div class="f-expr">
+      <div><i>σ</i> = <i>β</i>√<i>α</i>, &nbsp; среднее = <i>γ</i> + <i>αβ</i>, &nbsp; <i>C<sub>v</sub></i> = <span class="fr"><span><i>σ</i></span><span>среднее</span></span>, &nbsp; <i>C<sub>s</sub></i> = <span class="fr"><span>2</span><span>√<i>α</i></span></span></div>
+    </div></div>
+    <div class="f-row"><div class="f-name">Класс риска наводнения</div><div class="f-expr">
+      <div><i>τ</i><sub>2</sub> &lt; 0,2 — низкий, &nbsp; <i>τ</i><sub>2</sub> &lt; 0,5 — умеренный, &nbsp; иначе высокий</div>
+    </div></div>
+  </div>
+  <p class="note">Отношение Γ(α) / Γ(α + ½) вычисляется через логарифм гамма-функции, поэтому расчёт устойчив и при очень больших α.</p>
+</section>
+
+<section class="block" id="references">
+  <h2>Литература</h2>
+  <ol class="refs">
+    <li>Сикан А. В. Методы статистической обработки гидрометеорологической информации. СПб.: РГГМУ.</li>
+    <li>Hosking J. R. M. L-moments: analysis and estimation of distributions using linear combinations of order statistics // Journal of the Royal Statistical Society, Series B. 1990. Vol. 52, No. 1. P. 105–124.</li>
+  </ol>
+</section>
+
+<footer>
+  <p>Расчёт выполняется в браузере, введённые данные никуда не передаются. На контрольном примере результаты совпали с результатами исходной программы на C++.</p>
+</footer>
+</div>
+
+<script>
+/* Browser port of the C++ LMomentsCalculator, River and file-reading logic. */
+var Core = (function () {
+  'use strict';
+
+  var LANCZOS = [
+    0.99999999999980993, 676.5203681218851, -1259.1392167224028,
+    771.32342877765313, -176.61502916214059, 12.507343278686905,
+    -0.13857109526572012, 9.9843695780195716e-6, 1.5056327351493116e-7
+  ];
+
+  // Natural log of the gamma function. Used for the ratio
+  // Gamma(alpha) / Gamma(alpha + 0.5) so that large alpha does not overflow.
+  function lgamma(x) {
+    if (x < 0.5) {
+      return Math.log(Math.PI / Math.abs(Math.sin(Math.PI * x))) - lgamma(1 - x);
+    }
+    x -= 1;
+    var a = LANCZOS[0];
+    var t = x + 7.5;
+    for (var i = 1; i < 9; i++) a += LANCZOS[i] / (x + i);
+    return 0.5 * Math.log(2 * Math.PI) + (x + 0.5) * Math.log(t) - t + Math.log(a);
+  }
+
+  // data must be sorted ascending (the River constructor sorts before calling).
+  function analyse(data) {
+    var n = data.length;
+    if (n < 4) return null;
+
+    var s0 = 0, s1 = 0, s2 = 0, s3 = 0;
+    for (var j = 0; j < n; j++) {
+      var xj = data[j];
+      var p = j + 1;
+      s0 += xj;
+      s1 += (p - 1) / (n - 1) * xj;
+      s2 += (p - 1) * (p - 2) / ((n - 1) * (n - 2)) * xj;
+      s3 += (p - 1) * (p - 2) * (p - 3) / ((n - 1) * (n - 2) * (n - 3)) * xj;
+    }
+    var b0 = s0 / n, b1 = s1 / n, b2 = s2 / n, b3 = s3 / n;
+
+    var l1 = b0;
+    var l2 = 2 * b1 - b0;
+    var l3 = 6 * b2 - 6 * b1 + b0;
+    var l4 = 20 * b3 - 30 * b2 + 12 * b1 - b0;
+
+    var t2 = l2 / l1;
+    var t3 = l3 / l2;
+    var t4 = l4 / l2;
+
+    var abs3 = Math.abs(t3);
+    var alpha, z;
+    if (abs3 < 1e-6) {
+      alpha = 1000.0;
+    } else if (abs3 < 1.0 / 3.0) {
+      z = 3.0 * Math.PI * t3 * t3;
+      alpha = (1.0 + 0.2906 * z) / (z + 0.1882 * z * z + 0.0442 * z * z * z);
+    } else if (abs3 < 1.0) {
+      z = 1.0 - abs3;
+      alpha = (0.36067 * z - 0.59567 * z * z + 0.25361 * z * z * z) /
+              (1.0 - 2.78861 * z + 2.56096 * z * z - 0.77045 * z * z * z);
+    } else {
+      alpha = 0.01;
+    }
+    if (alpha > 200.0) alpha = 200.0;
+    if (alpha < 0.01) alpha = 0.01;
+
+    var beta = l2 * Math.sqrt(Math.PI) * Math.exp(lgamma(alpha) - lgamma(alpha + 0.5));
+    var gamma = l1 - alpha * beta;
+    var sd = beta * Math.sqrt(alpha);
+    var mean = gamma + alpha * beta;
+    var cv = sd / mean;
+    var cs = Math.sqrt(4.0 / alpha);
+    var risk = t2 < 0.2 ? 'LOW' : (t2 < 0.5 ? 'MODERATE' : 'HIGH');
+
+    return {
+      n: n, b0: b0, b1: b1, b2: b2, b3: b3,
+      l1: l1, l2: l2, l3: l3, l4: l4, t2: t2, t3: t3, t4: t4,
+      alpha: alpha, beta: beta, gamma: gamma,
+      sd: sd, mean: mean, cv: cv, cs: cs, risk: risk,
+      min: data[0], max: data[n - 1]
+    };
+  }
+
+  // One name per line; carriage returns removed; empty lines skipped.
+  function parseNames(text) {
+    var out = [];
+    text.split('\n').forEach(function (raw) {
+      var line = raw.replace(/\r$/, '');
+      if (line.length > 0) out.push(line);
+    });
+    return out;
+  }
+
+  var NUM = /^[+-]?(\d+\.?\d*|\.\d+)([eE][+-]?\d+)?$/;
+
+  // Columns of numbers. Commas become dots, values <= 0 are dropped, the first
+  // non-empty line fixes the number of columns (same rules as the C++ reader).
+  function parseData(text) {
+    var cols = [];
+    var first = true;
+    text.split('\n').forEach(function (raw) {
+      var line = raw.replace(/\r$/, '');
+      if (line.length === 0) return;
+      line = line.replace(/,/g, '.');
+      var row = [];
+      var toks = line.split(/\s+/);
+      for (var i = 0; i < toks.length; i++) {
+        if (toks[i] === '') continue;
+        if (!NUM.test(toks[i])) break;
+        var v = parseFloat(toks[i]);
+        if (v > 0) row.push(v);
+      }
+      if (first) {
+        cols = [];
+        for (var c = 0; c < row.length; c++) cols.push([]);
+        first = false;
+      }
+      for (var k = 0; k < row.length && k < cols.length; k++) cols[k].push(row[k]);
+    });
+    return cols;
+  }
+
+  function fx(x, d) {
+    if (typeof x !== 'number' || !isFinite(x)) return isNaN(x) ? 'nan' : (x < 0 ? '-inf' : 'inf');
+    return x.toFixed(d);
+  }
+  function pad(s, w) { return String(s).padEnd(w, ' '); }
+  function rep(ch, n) { return new Array(n + 1).join(ch); }
+
+  // Same layout as LMomentsCalculator::writeToFile.
+  function riverText(name, r) {
+    var eq = rep('=', 85), dash = rep('-', 85);
+    var f = function (x) { return fx(x, 4); };
+    var L = [
+      '', eq, 'RIVER: ' + name, 'Number of observations: n = ' + r.n, eq,
+      '', 'L-MOMENTS:', dash,
+      pad('l1', 15) + pad('l2', 15) + pad('l3', 15) + pad('l4', 15) +
+        pad('L-Cv (t2)', 15) + pad('L-skew (t3)', 15) + pad('L-kurt (t4)', 15),
+      dash,
+      [r.l1, r.l2, r.l3, r.l4, r.t2, r.t3, r.t4].map(function (v) { return pad(f(v), 15); }).join(''),
+      '', 'PROBABILITY WEIGHTED MOMENTS:', dash,
+      pad('b0', 15) + pad('b1', 15) + pad('b2', 15) + pad('b3', 15),
+      dash,
+      [r.b0, r.b1, r.b2, r.b3].map(function (v) { return pad(f(v), 15); }).join(''),
+      '', 'PEARSON III PARAMETERS:', dash,
+      pad('Parameter', 20) + pad('Symbol', 15) + pad('Value', 20),
+      dash,
+      pad('Shape', 20) + pad('alpha', 15) + pad(f(r.alpha), 20),
+      pad('Scale', 20) + pad('beta', 15) + pad(f(r.beta), 20),
+      pad('Location', 20) + pad('gamma', 15) + pad(f(r.gamma), 20),
+      '', 'CONVENTIONAL STATISTICS:', dash,
+      pad('Mean', 20) + pad('Std Dev', 20) + pad('Cv', 15) + pad('Cs', 15),
+      dash,
+      pad(f(r.mean), 20) + pad(f(r.sd), 20) + pad(f(r.cv), 15) + pad(f(r.cs), 15),
+      '', 'FLOOD RISK: ' + r.risk, eq
+    ];
+    return L.join('\n') + '\n';
+  }
+
+  // Same layout as the summary table written to the results file.
+  // items: [{name, n, res}] where res is null when there are fewer than 4 points.
+  function summaryText(items) {
+    var eq = rep('=', 85), dash = rep('-', 85);
+    var L = [
+      '', eq, 'SUMMARY TABLE', eq,
+      pad('River Name and Station', 50) + pad('Points', 12) + pad('Mean (m3/s)', 18) +
+        pad('L-Cv (t2)', 15) + pad('L-skew (t3)', 15),
+      dash
+    ];
+    items.forEach(function (it) {
+      if (it.res) {
+        L.push(pad(it.name, 50) + pad(it.n, 12) + pad(fx(it.res.mean, 2), 18) +
+               pad(fx(it.res.t2, 6), 15) + pad(fx(it.res.t3, 6), 15));
+      } else if (it.n > 0) {
+        L.push(pad(it.name, 50) + pad(it.n, 12) + pad('INSUFFICIENT DATA', 18) +
+               pad('-', 15) + pad('-', 15));
+      }
+    });
+    L.push(eq);
+    return L.join('\n') + '\n';
+  }
+
+  return {
+    lgamma: lgamma, analyse: analyse, parseNames: parseNames, parseData: parseData,
+    riverText: riverText, summaryText: summaryText, fx: fx
+  };
+})();
+
+if (typeof module !== 'undefined' && module.exports) module.exports = Core;
+
+</script>
+<script>
+(function () {
+  'use strict';
+  var $ = function (id) { return document.getElementById(id); };
+  var fx = Core.fx;
+
+  function esc(s) {
+    return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
+  var RISK = { LOW: 'НИЗКИЙ', MODERATE: 'УМЕРЕННЫЙ', HIGH: 'ВЫСОКИЙ' };
+
+  function copyText(text, btn) {
+    var label = btn.textContent;
+    var done = function () { btn.textContent = 'Скопировано'; setTimeout(function () { btn.textContent = label; }, 1600); };
+    var fallback = function () {
+      try {
+        var ta = document.createElement('textarea');
+        ta.value = text;
+        ta.setAttribute('readonly', '');
+        ta.style.cssText = 'position:fixed;top:0;left:0;opacity:0;';
+        document.body.appendChild(ta);
+        ta.select();
+        var ok = document.execCommand('copy');
+        document.body.removeChild(ta);
+        if (ok) { done(); return; }
+      } catch (e) { /* fall through */ }
+      btn.textContent = 'Выделите текст и скопируйте';
+      setTimeout(function () { btn.textContent = label; }, 2500);
+    };
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(done, fallback);
+    } else {
+      fallback();
+    }
+  }
+
+  /* ---------- text report (Russian labels) ---------- */
+  function pad(s, w) { return String(s).padEnd(w, ' '); }
+  function rep(ch, n) { return new Array(n + 1).join(ch); }
+  function riverText(name, r) {
+    var eq = rep('=', 85), dash = rep('-', 85);
+    var f = function (x) { return fx(x, 4); };
+    return [
+      eq, 'Река: ' + name, 'Число наблюдений: n = ' + r.n, eq,
+      '', 'L-МОМЕНТЫ', dash,
+      pad('l1', 13) + pad('l2', 13) + pad('l3', 13) + pad('l4', 13) + pad('t2 (L-Cv)', 13) + pad('t3 (L-асим.)', 15) + pad('t4 (L-экс.)', 13),
+      dash,
+      [r.l1, r.l2, r.l3, r.l4].map(function (v) { return pad(f(v), 13); }).join('') + pad(f(r.t2), 13) + pad(f(r.t3), 15) + pad(f(r.t4), 13),
+      '', 'ВЕРОЯТНОСТНО ВЗВЕШЕННЫЕ МОМЕНТЫ', dash,
+      pad('b0', 13) + pad('b1', 13) + pad('b2', 13) + pad('b3', 13), dash,
+      [r.b0, r.b1, r.b2, r.b3].map(function (v) { return pad(f(v), 13); }).join(''),
+      '', 'ПАРАМЕТРЫ РАСПРЕДЕЛЕНИЯ ПИРСОНА III ТИПА', dash,
+      pad('Параметр', 20) + pad('Обозначение', 15) + pad('Значение', 20), dash,
+      pad('Формы', 20) + pad('alpha', 15) + pad(f(r.alpha), 20),
+      pad('Масштаба', 20) + pad('beta', 15) + pad(f(r.beta), 20),
+      pad('Положения', 20) + pad('gamma', 15) + pad(f(r.gamma), 20),
+      '', 'ОБЫЧНЫЕ СТАТИСТИКИ', dash,
+      pad('Среднее', 20) + pad('Ср. кв. откл.', 20) + pad('Cv', 15) + pad('Cs', 15), dash,
+      pad(f(r.mean), 20) + pad(f(r.sd), 20) + pad(f(r.cv), 15) + pad(f(r.cs), 15),
+      '', 'РИСК НАВОДНЕНИЯ: ' + RISK[r.risk], eq, ''
+    ].join('\n');
+  }
+  function summaryText(items) {
+    var eq = rep('=', 85), dash = rep('-', 85);
+    var L = ['ИТОГОВАЯ ТАБЛИЦА', eq,
+      pad('Река и створ', 40) + pad('Точек', 8) + pad('Среднее, м3/с', 16) + pad('t2', 11) + pad('t3', 11), dash];
+    items.forEach(function (it) {
+      if (it.res) {
+        L.push(pad(it.name, 40) + pad(it.n, 8) + pad(fx(it.res.mean, 2), 16) + pad(fx(it.res.t2, 4), 11) + pad(fx(it.res.t3, 4), 11));
+      } else if (it.n > 0) {
+        L.push(pad(it.name, 40) + pad(it.n, 8) + 'недостаточно данных');
+      }
+    });
+    L.push(eq);
+    return L.join('\n') + '\n';
+  }
+
+  /* ---------- results ---------- */
+  function pill(risk) {
+    return '<span class="pill risk-' + risk.toLowerCase() + '">' + RISK[risk] + '</span>';
+  }
+  function cell(k, hint, v) {
+    return '<div class="cell"><div class="k">' + k + (hint ? '<small>' + hint + '</small>' : '') + '</div><div class="v">' + v + '</div></div>';
+  }
+  function strip(sorted, r) {
+    var span = r.max - r.min;
+    var dots = sorted.map(function (v) {
+      var p = span > 0 ? (v - r.min) / span * 100 : 50;
+      return '<i style="left:' + p.toFixed(2) + '%"></i>';
+    }).join('');
+    var mp = span > 0 ? (r.l1 - r.min) / span * 100 : 50;
+    return '<figure class="strip" role="img" aria-label="Упорядоченные значения от ' + fx(r.min, 2) + ' до ' + fx(r.max, 2) + ', среднее ' + fx(r.l1, 2) + '">' +
+      '<div class="track">' + dots + '<b style="left:' + mp.toFixed(2) + '%"></b></div>' +
+      '<figcaption><span>мин. ' + fx(r.min, 2) + '</span><span>среднее ' + fx(r.l1, 2) + '</span><span>макс. ' + fx(r.max, 2) + '</span></figcaption></figure>';
+  }
+  function card(it) {
+    var r = it.res, f = function (x) { return fx(x, 4); };
+    return '<article class="river">' +
+      '<div class="river-head"><h3>' + esc(it.name) + '</h3>' + pill(r.risk) + '</div>' +
+      '<p class="sub">n = ' + r.n + '. Точки — упорядоченные значения расхода воды, м³/с; чёрная черта — среднее.</p>' +
+      strip(it.sorted, r) +
+      '<div class="groups">' +
+        '<section class="wide"><h4>L-моменты</h4><div class="cells">' +
+          cell('l<sub>1</sub>', '', f(r.l1)) + cell('l<sub>2</sub>', '', f(r.l2)) +
+          cell('l<sub>3</sub>', '', f(r.l3)) + cell('l<sub>4</sub>', '', f(r.l4)) +
+          cell('t<sub>2</sub>', 'L-Cv', f(r.t2)) + cell('t<sub>3</sub>', 'L-асимметрия', f(r.t3)) +
+          cell('t<sub>4</sub>', 'L-эксцесс', f(r.t4)) +
+        '</div></section>' +
+        '<section><h4>Вероятностно взвешенные моменты</h4><div class="cells">' +
+          cell('b<sub>0</sub>', '', f(r.b0)) + cell('b<sub>1</sub>', '', f(r.b1)) +
+          cell('b<sub>2</sub>', '', f(r.b2)) + cell('b<sub>3</sub>', '', f(r.b3)) +
+        '</div></section>' +
+        '<section><h4>Параметры Пирсона III типа</h4><div class="cells">' +
+          cell('α', 'формы', f(r.alpha)) + cell('β', 'масштаба', f(r.beta)) + cell('γ', 'положения', f(r.gamma)) +
+        '</div></section>' +
+        '<section><h4>Обычные статистики</h4><div class="cells">' +
+          cell('Среднее', 'м³/с', f(r.mean)) + cell('σ', 'м³/с', f(r.sd)) +
+          cell('C<sub>v</sub>', '', f(r.cv)) + cell('C<sub>s</sub>', '', f(r.cs)) +
+        '</div></section>' +
+      '</div></article>';
+  }
+  function summaryTable(items) {
+    var rows = items.map(function (it) {
+      if (it.res) {
+        var r = it.res;
+        return '<tr><th scope="row">' + esc(it.name) + '</th><td class="num">' + it.n + '</td><td class="num">' + fx(r.mean, 2) +
+          '</td><td class="num">' + fx(r.t2, 4) + '</td><td class="num">' + fx(r.t3, 4) + '</td><td>' + pill(r.risk) + '</td></tr>';
+      }
+      if (it.n > 0) {
+        return '<tr><th scope="row">' + esc(it.name) + '</th><td class="num">' + it.n + '</td><td colspan="4" class="muted">Недостаточно данных: нужно не менее 4 значений</td></tr>';
+      }
+      return '';
+    }).join('');
+    return '<div class="table-wrap"><table><thead><tr><th>Река и створ</th><th class="num">Точек</th><th class="num">Среднее, м³/с</th>' +
+      '<th class="num">L-Cv (t<sub>2</sub>)</th><th class="num">L-асим. (t<sub>3</sub>)</th><th>Риск наводнения</th></tr></thead><tbody>' + rows + '</tbody></table></div>';
+  }
+
+  var reportText = '';
+  function clearOutput() {
+    $('summary').innerHTML = '';
+    $('cards').innerHTML = '';
+    $('ruleNote').hidden = true;
+    $('textOut').hidden = true;
+    reportText = '';
+  }
+  function riversWord(n) {
+    var m10 = n % 10, m100 = n % 100;
+    if (m10 === 1 && m100 !== 11) return 'река';
+    if (m10 >= 2 && m10 <= 4 && (m100 < 12 || m100 > 14)) return 'реки';
+    return 'рек';
+  }
+
+  function render() {
+    var names = Core.parseNames($('names').value);
+    var cols = Core.parseData($('data').value);
+    var status = $('status');
+    var warnings = [];
+
+    if (!names.length) {
+      clearOutput();
+      status.innerHTML = '<span class="err">Введите хотя бы одно название реки, по одному в строке.</span>';
+      return;
+    }
+    if (!cols.length) {
+      clearOutput();
+      status.innerHTML = '<span class="err">В поле данных нет чисел. Введите по одному столбцу расходов воды на каждую реку, без заголовков.</span>';
+      return;
+    }
+    var nNames = names.length, nCols = cols.length;
+    if (nCols !== nNames) {
+      if (nCols < nNames) {
+        warnings.push('Названий: ' + nNames + ', столбцов с данными: ' + nCols + '. Используются только первые ' + nCols + ' названий.');
+        names = names.slice(0, nCols);
+      } else {
+        warnings.push('Названий: ' + nNames + ', столбцов с данными: ' + nCols + '. Лишние столбцы не учитываются.');
+      }
+    }
+    var items = names.map(function (nm, i) {
+      var sorted = cols[i].slice().sort(function (a, b) { return a - b; });
+      var res = Core.analyse(sorted);
+      if (!res) warnings.push('«' + nm + '»: только ' + sorted.length + ' значений, нужно не менее 4.');
+      return { name: nm, n: sorted.length, sorted: sorted, res: res };
+    });
+
+    status.innerHTML = 'Прочитано: ' + names.length + ' ' + riversWord(names.length) + '.' +
+      (warnings.length ? '<ul>' + warnings.map(function (w) { return '<li>' + esc(w) + '</li>'; }).join('') + '</ul>' : '');
+
+    $('summary').innerHTML = summaryTable(items);
+    $('ruleNote').hidden = false;
+    $('cards').innerHTML = items.filter(function (it) { return it.res; }).map(card).join('');
+
+    var text = '';
+    items.forEach(function (it) { if (it.res) text += riverText(it.name, it.res); });
+    text += summaryText(items);
+    reportText = text;
+    $('report').textContent = text;
+    $('textOut').hidden = false;
+  }
+
+  var timer = null;
+  function schedule() { clearTimeout(timer); timer = setTimeout(render, 150); }
+  $('names').addEventListener('input', schedule);
+  $('data').addEventListener('input', schedule);
+
+  var namesDefault = $('names').defaultValue, dataDefault = $('data').defaultValue;
+  $('reset').addEventListener('click', function () {
+    $('names').value = namesDefault;
+    $('data').value = dataDefault;
+    render();
+  });
+  function bindFile(inputId, targetId) {
+    $(inputId).addEventListener('change', function (e) {
+      var file = e.target.files && e.target.files[0];
+      if (!file) return;
+      var reader = new FileReader();
+      reader.onload = function () { $(targetId).value = String(reader.result); render(); };
+      reader.readAsText(file);
+      e.target.value = '';
+    });
+  }
+  bindFile('namesFile', 'names');
+  bindFile('dataFile', 'data');
+  $('copyReport').addEventListener('click', function () { copyText(reportText, this); });
+
+  render();
+})();
+
+</script>
